@@ -4,3 +4,8 @@ logging:
 
 fileAPI:
   storageRoot: /Users/jeonghan/IdeaProjects/UniversalFileAPI/storageRoot
+
+spring:
+  devtools:
+    restart:
+      enabled: true
