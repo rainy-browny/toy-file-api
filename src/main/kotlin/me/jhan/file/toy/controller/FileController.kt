@@ -39,4 +39,9 @@ class FileController(
     fun deleteFile(@RequestParam("filePath") filePath: String) : Mono<Void> {
         return fileService.deleteFile(filePath)
     }
+    
+    @PutMapping("/file/move")
+    fun moveFile(@RequestParam("oldFilePath") oldFilePath: String, @RequestParam("newFilePath") newFilePath: String): Mono<FileModel> {
+        return fileService.moveFile(oldFilePath, newFilePath);
+    }
 }

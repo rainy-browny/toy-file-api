@@ -21,7 +21,12 @@ class DirectoryController(
     }
 
     @GetMapping("/directory")
-    fun getDirectory(@RequestParam path:String): Mono<DirectoryModel> {
+    fun getDirectory(@RequestParam(required = false, defaultValue = "/") path:String): Mono<DirectoryModel> {
         return directoryService.getDirectory(path)
+    }
+    
+    @PutMapping("/directory/move")
+    fun moveDirectory(@RequestParam oldPath: String, @RequestParam newPath: String): Mono<DirectoryModel> {
+        return directoryService.moveDirectory(oldPath, newPath);
     }
 }

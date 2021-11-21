@@ -10,30 +10,36 @@ data class DirectoryUnitModel(
 )
 
 class DirectoryModel(
-    @JsonIgnore val directoryName: String,
-    @JsonIgnore val directoryFullPath: String,
-    @JsonIgnore val subDirectory: MutableMap<String, ObjectId> = hashMapOf(),
-    @JsonIgnore val fileList: MutableMap<String, FileModel> = hashMapOf()
+    directoryName: String,
+    directoryFullPath: String,
+    subDirectory: MutableMap<String, ObjectId> = hashMapOf(),
+    fileList: MutableMap<String, FileModel> = hashMapOf()
 ) {
     @JsonIgnore @Id var id: ObjectId? = null
     val owner: String
         get() = directoryFullPath.split("/").getOrElse(0) { "" }
 
-    val _directoryName: String
-        @JsonProperty("directoryName") get() =
-            if (directoryName == directoryFullPath) "" else directoryName
-
-    val _subDirectory: List<DirectoryUnitModel>
-        @JsonProperty("subDirectory") get() =
-            subDirectory
-                .map { it.key }
-                .map { DirectoryUnitModel(it) }
-    val _fileList: List<FileUnitModel>
-        @JsonProperty("fileList") get() =
-            fileList
-                .map { convertFileUnitModel(it.key, it.value) }
-
-    val _directoryFullPath: String
-        @JsonProperty("directoryFullPath") get() =
-            directoryFullPath.removePrefix(owner).ifBlank { "/" }
+    val directoryName: String
+        get() = if (field == directoryFullPath) "" else field
+    @JsonIgnore val directoryFullPath: String
+    
+    @JsonIgnore val subDirectory: MutableMap<String, ObjectId>
+    @JsonIgnore val fileList: MutableMap<String, FileModel>
+    
+    @JsonProperty("directoryFullPath") fun _getDirectoryFullPath(): String = 
+        directoryFullPath.removePrefix(owner).ifBlank { "/" }
+    @JsonProperty("subDirectory") fun getSubDirectory(): List<DirectoryUnitModel> = subDirectory
+        .map { it.key }
+        .map { DirectoryUnitModel(it) }
+    @JsonProperty("fileList") fun getFileList(): List<FileUnitModel> = fileList
+        .map { convertFileUnitModel(it.key, it.value)}
+    
+    init {
+        this.directoryName = directoryName
+        this.directoryFullPath = directoryFullPath
+        this.subDirectory = subDirectory
+        this.fileList = fileList
+    }
+    
+    
 }
