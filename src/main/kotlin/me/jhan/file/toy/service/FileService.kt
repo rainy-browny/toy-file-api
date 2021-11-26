@@ -117,7 +117,7 @@ class FileService(
                 val newFileModel = FileModel(newFileStoragePath.toString(), LocalDateTime.now())
 
                 if (fileList.containsKey(fileName)) {
-                    throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${fullPath}");
+                    throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}");
                 }
 
                 fileList[fileName] = newFileModel
