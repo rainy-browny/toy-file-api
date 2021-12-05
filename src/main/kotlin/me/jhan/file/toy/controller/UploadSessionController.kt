@@ -24,7 +24,7 @@ class UploadSessionController (
     @PostMapping("/session/chunkFile")
     @ApiImplicitParams(
             ApiImplicitParam(name = "sessionId", paramType = "query", required = true),
-            ApiImplicitParam(name = "chunkNumber", paramType = "query", required = true),
+            ApiImplicitParam(name = "chunkNumber", paramType = "query", dataType = "long", required = true),
             ApiImplicitParam(name = "file", dataType = "__file", paramType = "form", required = true)
     )
     fun uploadFile(@RequestParam("sessionId") sessionId: String,
