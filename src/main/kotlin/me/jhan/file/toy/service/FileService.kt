@@ -11,6 +11,7 @@ import org.springframework.http.codec.multipart.FilePart
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import java.io.File
+import java.nio.file.Path
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import kotlin.io.path.Path
@@ -103,38 +104,40 @@ class FileService(
     }
 
     fun uploadFile(path: String, filePart: FilePart): Mono<FileModel> {
+        return uploadFile(path) {
+            filePart.transferTo(it);
+        };
+    }
+
+    fun <T> uploadFile(path: String, saveFunction: (Path) -> Mono<T>): Mono<FileModel> {
         val (dirPath, fileName) = PathUtil.splitFile(path)
         val userId = userService.getUserId()
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
-            .flatMap {
-                val dirModel = it
-                val fileList = it.fileList
+                .flatMap {
+                    val dirModel = it
+                    val fileList = it.fileList
 
-                val newFileName = generateStorageFileName()
-                val newFileStoragePath = Path(storageRoot, newFileName)
-                val newFileModel = FileModel(newFileStoragePath.toString(), LocalDateTime.now())
+                    val newFileName = generateStorageFileName()
+                    val newFileStoragePath = Path(storageRoot, newFileName)
+                    val newFileModel = FileModel(newFileStoragePath.toString(), LocalDateTime.now())
 
-                if (fileList.containsKey(fileName)) {
-                    throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}");
+                    if (fileList.containsKey(fileName)) {
+                        throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}");
+                    }
+
+                    fileList[fileName] = newFileModel
+                    val saveFileStorage = saveFunction(newFileStoragePath);
+                    val saveFileDB = directoryRepository.save(dirModel)
+
+                    return@flatMap Mono
+                        .zip(saveFileStorage, saveFileDB)
+                        .thenReturn(newFileModel)
                 }
 
-                fileList[fileName] = newFileModel
-                val saveFileStorage = filePart
-                    .transferTo(newFileStoragePath)
-
-                val saveFileDB = directoryRepository.save(dirModel)
-
-                return@flatMap Mono
-                    .`when`(saveFileStorage, saveFileDB)
-                    .map { newFileModel }
-            }
-    }
-
-
-    private fun generateStorageFileName(): String {
-        return RandomStringUtils.randomAlphanumeric(5) +
-                LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) + ".bin"
     }
 }
+
+fun generateStorageFileName(): String = RandomStringUtils.randomAlphanumeric(5) +
+            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) + ".bin"
