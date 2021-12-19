@@ -11,20 +11,20 @@ class DirectoryController(
 ) {
 
     @PostMapping("/directory")
-    fun createDirectory(@RequestParam path:String): Mono<DirectoryModel> {
+    fun createDirectory(@RequestParam path: String): Mono<DirectoryModel> {
         return directoryService.createDirectory(path)
     }
 
     @DeleteMapping("/directory")
-    fun deleteDirectory(@RequestParam path:String): Mono<DirectoryModel> {
+    fun deleteDirectory(@RequestParam path: String): Mono<DirectoryModel> {
         return directoryService.deleteDirectory(path)
     }
 
     @GetMapping("/directory")
-    fun getDirectory(@RequestParam(required = false, defaultValue = "/") path:String): Mono<DirectoryModel> {
+    fun getDirectory(@RequestParam(required = false, defaultValue = "/") path: String): Mono<DirectoryModel> {
         return directoryService.getDirectory(path)
     }
-    
+
     @PutMapping("/directory/move")
     fun moveDirectory(@RequestParam oldPath: String, @RequestParam newPath: String): Mono<DirectoryModel> {
         return directoryService.moveDirectory(oldPath, newPath);

@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 
 @RestController
-class UploadSessionController (
-        private val uploadSessionService: UploadSessionService
-){
+class UploadSessionController(
+    private val uploadSessionService: UploadSessionService
+) {
     @PostMapping("/session")
     fun makeSession(@RequestParam(required = true) filePath: String): Mono<UploadSessionModel> {
         return uploadSessionService.makeSession(filePath);
@@ -23,18 +23,23 @@ class UploadSessionController (
 
     @PostMapping("/session/chunkFile")
     @ApiImplicitParams(
-            ApiImplicitParam(name = "sessionId", paramType = "query", required = true),
-            ApiImplicitParam(name = "chunkNumber", paramType = "query", dataType = "long", required = true),
-            ApiImplicitParam(name = "file", dataType = "__file", paramType = "form", required = true)
+        ApiImplicitParam(name = "sessionId", paramType = "query", required = true),
+        ApiImplicitParam(name = "chunkNumber", paramType = "query", dataType = "long", required = true),
+        ApiImplicitParam(name = "file", dataType = "__file", paramType = "form", required = true)
     )
-    fun uploadFile(@RequestParam("sessionId") sessionId: String,
-                   @RequestParam("chunkNumber") chunkNumber: Long,
-                   @RequestPart("file") file: FilePart): Mono<UploadSessionModel> {
+    fun uploadFile(
+        @RequestParam("sessionId") sessionId: String,
+        @RequestParam("chunkNumber") chunkNumber: Long,
+        @RequestPart("file") file: FilePart
+    ): Mono<UploadSessionModel> {
         return uploadSessionService.uploadChunk(sessionId, chunkNumber, file);
     }
 
     @PostMapping("/session/finish")
-    fun finishUpload(@RequestParam("sessionId") sessionId: String, @RequestParam("totalChunkCount") chunkCount: Int): Mono<FileModel> {
+    fun finishUpload(
+        @RequestParam("sessionId") sessionId: String,
+        @RequestParam("totalChunkCount") chunkCount: Int
+    ): Mono<FileModel> {
         return uploadSessionService.finishUpload(sessionId, chunkCount);
     }
 }

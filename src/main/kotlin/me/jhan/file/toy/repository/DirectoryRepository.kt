@@ -5,6 +5,6 @@ import org.bson.types.ObjectId
 import org.springframework.data.repository.reactive.ReactiveCrudRepository
 import reactor.core.publisher.Mono
 
-interface DirectoryRepository: ReactiveCrudRepository<DirectoryModel, ObjectId>{
+interface DirectoryRepository : ReactiveCrudRepository<DirectoryModel, ObjectId> {
     fun findByDirectoryFullPath(name: String): Mono<DirectoryModel>
 }
