@@ -17,7 +17,7 @@ class FileController(
 ) {
 
     @GetMapping("/fileInfo")
-    fun getFileInfo(@RequestParam filePath: String) :Mono<FileInfoModel> {
+    fun getFileInfo(@RequestParam filePath: String): Mono<FileInfoModel> {
         return fileService.getFileInfo(filePath)
     }
 
@@ -31,17 +31,20 @@ class FileController(
     }
 
     @GetMapping("/file", produces = [MediaType.APPLICATION_OCTET_STREAM_VALUE])
-    fun downloadFile(@RequestParam("filePath") filePath: String) : Mono<FileSystemResource> {
+    fun downloadFile(@RequestParam("filePath") filePath: String): Mono<FileSystemResource> {
         return fileService.getFile(filePath)
     }
 
     @DeleteMapping("/file")
-    fun deleteFile(@RequestParam("filePath") filePath: String) : Mono<Void> {
+    fun deleteFile(@RequestParam("filePath") filePath: String): Mono<Void> {
         return fileService.deleteFile(filePath)
     }
-    
+
     @PutMapping("/file/move")
-    fun moveFile(@RequestParam("oldFilePath") oldFilePath: String, @RequestParam("newFilePath") newFilePath: String): Mono<FileModel> {
+    fun moveFile(
+        @RequestParam("oldFilePath") oldFilePath: String,
+        @RequestParam("newFilePath") newFilePath: String
+    ): Mono<FileModel> {
         return fileService.moveFile(oldFilePath, newFilePath);
     }
 }

@@ -23,7 +23,7 @@ class SwaggerConfig {
             .build()
     }
 
-    fun apiInfo() : ApiInfo {
+    fun apiInfo(): ApiInfo {
         return ApiInfoBuilder()
             .title("toyFileAPI")
             .version("0.0.1")

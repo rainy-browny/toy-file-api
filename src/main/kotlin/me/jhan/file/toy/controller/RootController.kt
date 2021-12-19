@@ -8,10 +8,10 @@ import org.springframework.web.reactive.result.view.View
 
 @Controller
 class RootController {
-    
+
     @GetMapping("/")
     @ApiOperation(value = "swagger 메인 페이지로 리다이렉트 합니다.")
-    fun index() : View {
+    fun index(): View {
         return RedirectView("/swagger-ui.html");
     }
 }

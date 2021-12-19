@@ -19,6 +19,6 @@ object PathUtil {
     }
 
     fun splitSubDirectory(path: String): List<String> {
-        return path.split("/").filterNot{ it.isBlank() }
+        return path.split("/").filterNot { it.isBlank() }
     }
 }

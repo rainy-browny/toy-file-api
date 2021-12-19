@@ -115,29 +115,29 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
-                .flatMap {
-                    val dirModel = it
-                    val fileList = it.fileList
+            .flatMap {
+                val dirModel = it
+                val fileList = it.fileList
 
-                    val newFileName = generateStorageFileName()
-                    val newFileStoragePath = Path(storageRoot, newFileName)
-                    val newFileModel = FileModel(newFileStoragePath.toString(), LocalDateTime.now())
+                val newFileName = generateStorageFileName()
+                val newFileStoragePath = Path(storageRoot, newFileName)
+                val newFileModel = FileModel(newFileStoragePath.toString(), LocalDateTime.now())
 
-                    if (fileList.containsKey(fileName)) {
-                        throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}");
-                    }
-
-                    fileList[fileName] = newFileModel
-                    val saveFileStorage = saveFunction(newFileStoragePath);
-                    val saveFileDB = directoryRepository.save(dirModel)
-
-                    return@flatMap Mono
-                        .zip(saveFileStorage, saveFileDB)
-                        .thenReturn(newFileModel)
+                if (fileList.containsKey(fileName)) {
+                    throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}");
                 }
+
+                fileList[fileName] = newFileModel
+                val saveFileStorage = saveFunction(newFileStoragePath);
+                val saveFileDB = directoryRepository.save(dirModel)
+
+                return@flatMap Mono
+                    .zip(saveFileStorage, saveFileDB)
+                    .thenReturn(newFileModel)
+            }
 
     }
 }
 
 fun generateStorageFileName(): String = RandomStringUtils.randomAlphanumeric(5) +
-            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) + ".bin"
+        LocalDateTime.now().toEpochSecond(ZoneOffset.UTC) + ".bin"
