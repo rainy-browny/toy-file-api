@@ -153,7 +153,7 @@ class DirectoryService(
             }
             .flatMap { // 과거 디렉토리 모델 삭제
                 val next = it;
-                directoryRepository.delete(it.first).map { next.second }
+                directoryRepository.delete(it.first).thenReturn(next.second)
             }
     }
 
