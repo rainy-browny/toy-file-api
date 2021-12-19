@@ -3,6 +3,8 @@ package me.jhan.file.toy.service
 import me.jhan.file.toy.model.DirectoryModel
 import me.jhan.file.toy.repository.DirectoryRepository
 import me.jhan.file.toy.util.PathUtil
+import me.jhan.file.toy.util.brokenStableDBMono
+import me.jhan.file.toy.util.notExistsMono
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
 import reactor.kotlin.core.util.function.component1
@@ -21,11 +23,12 @@ class DirectoryService(
         val delDirMono = directoryRepository.findByDirectoryFullPath(fullPath)
         val parentDelDirMono = directoryRepository.findByDirectoryFullPath(parentPath)
         return Mono.zip(delDirMono, parentDelDirMono)
+            .switchIfEmpty(notExistsMono("삭제대상 디렉토리"))
             .doOnNext {
                 val (delDir, parentDelDir) = it
 
                 if (delDir.fileList.isNotEmpty() || delDir.subDirectory.isNotEmpty()) {
-                    throw IllegalStateException("내부 파일/폴더를 모두 지우고 파일을 삭제해주세요.");
+                    throw IllegalArgumentException("내부 파일/폴더를 모두 지우고 파일을 삭제해주세요.");
                 }
 
                 parentDelDir.subDirectory.remove(pathName)
@@ -69,9 +72,7 @@ class DirectoryService(
         val fullPath = PathUtil.getFullPath(userId, path)
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
-            .doOnError {
-                throw IllegalArgumentException("it's empty!", it);
-            }
+            .switchIfEmpty(notExistsMono("디렉토리"))
     }
 
     fun moveDirectory(oldPath: String, newPath: String): Mono<DirectoryModel> {
@@ -82,8 +83,10 @@ class DirectoryService(
         val (newParentPath, newDirName) = PathUtil.splitFile(newFullPath);
 
         return Mono.zip(
-            directoryRepository.findByDirectoryFullPath(oldParentPath),
-            directoryRepository.findByDirectoryFullPath(newParentPath),
+            directoryRepository.findByDirectoryFullPath(oldParentPath)
+                .switchIfEmpty(notExistsMono("기존 부모 디렉토리")),
+            directoryRepository.findByDirectoryFullPath(newParentPath)
+                .switchIfEmpty(notExistsMono("대상 부모 디렉토리")),
         )
             .doOnNext { // 검증
                 val (oldParDir, newParDir) = it;
@@ -102,6 +105,7 @@ class DirectoryService(
                 val dirModelId = oldParDir.subDirectory[oldDirName]!!;
 
                 directoryRepository.findById(dirModelId)
+                    .switchIfEmpty(brokenStableDBMono("서브 디렉토리 모델", dirModelId))
                     .map { targetDir ->
                         Pair(
                             targetDir,

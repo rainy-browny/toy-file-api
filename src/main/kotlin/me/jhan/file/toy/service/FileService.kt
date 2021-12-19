@@ -4,6 +4,7 @@ import me.jhan.file.toy.model.FileInfoModel
 import me.jhan.file.toy.model.FileModel
 import me.jhan.file.toy.repository.DirectoryRepository
 import me.jhan.file.toy.util.PathUtil
+import me.jhan.file.toy.util.notExistsMono
 import org.apache.commons.lang3.RandomStringUtils
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.FileSystemResource
@@ -25,12 +26,14 @@ class FileService(
     @Value("\${fileAPI.storageRoot}")
     private val storageRoot: String = "/"
 
+
     fun getFileInfo(path: String): Mono<FileInfoModel> {
         val (dirPath, fileName) = PathUtil.splitFile(path)
         val userId = userService.getUserId()
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("파일"))
             .map { it.fileList }
             .map { it[fileName] }
             .map { checkNotNull(it) }
@@ -43,6 +46,7 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("디렉토리"))
             .map { it.fileList }
             .map { it[fileName] }
             .map { checkNotNull(it) }
@@ -57,8 +61,10 @@ class FileService(
         val oldFullPath = "${userId}/${oldDirPath}";
         val newFullPath = "${userId}/${newDirPath}"
 
-        val oldDirectory = directoryRepository.findByDirectoryFullPath(oldFullPath);
-        val newDirectory = directoryRepository.findByDirectoryFullPath(newFullPath);
+        val oldDirectory = directoryRepository.findByDirectoryFullPath(oldFullPath)
+            .switchIfEmpty(notExistsMono("기존 디렉토리"))
+        val newDirectory = directoryRepository.findByDirectoryFullPath(newFullPath)
+            .switchIfEmpty(notExistsMono("대상 디렉토리"))
         return Mono.zip(oldDirectory, newDirectory)
             .doOnNext {
                 if (!it.t1.fileList.containsKey(oldFileName)) {
@@ -90,6 +96,7 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("디렉토리"))
             .flatMap {
                 val dirModel = it
                 val fileList = it.fileList
@@ -115,6 +122,7 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("삭제할 디렉토리"))
             .flatMap {
                 val dirModel = it
                 val fileList = it.fileList

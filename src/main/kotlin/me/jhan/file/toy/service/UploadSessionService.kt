@@ -4,13 +4,13 @@ import me.jhan.file.toy.model.FileModel
 import me.jhan.file.toy.model.UploadChunk
 import me.jhan.file.toy.model.UploadSessionModel
 import me.jhan.file.toy.repository.UploadSessionRepository
+import me.jhan.file.toy.util.notExistsMono
 import org.bson.types.ObjectId
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.codec.multipart.FilePart
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
-import reactor.kotlin.core.publisher.switchIfEmpty
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
@@ -24,6 +24,8 @@ class UploadSessionService(
     @Value("\${fileAPI.storageRoot}")
     private val storageRoot: String = "/"
 
+    private val sessionNotExistsMono = notExistsMono<UploadSessionModel>("업로드 세션")
+
     fun makeSession(filePath: String): Mono<UploadSessionModel> {
         val userId = userService.getUserId();
         val uploadSession = UploadSessionModel(userId, filePath);
@@ -35,7 +37,7 @@ class UploadSessionService(
         val tempFile = File.createTempFile("upload", ".dat");
         val userId = userService.getUserId();
         return uploadSessionRepository.findById(ObjectId(sessionId))
-            .switchIfEmpty { Mono.error { IllegalArgumentException("업로드 세션이 잘못 지정 되었습니다.") } }
+            .switchIfEmpty(sessionNotExistsMono)
             .doOnNext {
                 if (userId != it.owner) {
                     throw IllegalArgumentException("업로드 대상 유저가 다릅니다.");
@@ -54,6 +56,7 @@ class UploadSessionService(
 
     fun finishUpload(id: String, totalChunkCount: Int): Mono<FileModel> {
         return uploadSessionRepository.findById(ObjectId(id))
+            .switchIfEmpty(sessionNotExistsMono)
             .doOnNext { uploadSession ->
                 if (uploadSession.chunkList.size != totalChunkCount) {
                     throw IllegalArgumentException(
