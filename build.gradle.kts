@@ -11,6 +11,7 @@ plugins {
 group = "me.jhan.file"
 version = "0.0.1-SNAPSHOT"
 java.sourceCompatibility = JavaVersion.VERSION_11
+extra["log4j2.version"] = "2.17.0"
 
 repositories {
 	mavenCentral()
