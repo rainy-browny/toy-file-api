@@ -38,16 +38,18 @@ class UploadSessionService(
         val userId = userService.getUserId();
         return uploadSessionRepository.findById(ObjectId(sessionId))
             .switchIfEmpty(sessionNotExistsMono)
-            .doOnNext {
+            .flatMap {
                 if (userId != it.owner) {
-                    throw IllegalArgumentException("업로드 대상 유저가 다릅니다.");
+                    Mono.error(IllegalArgumentException("업로드 대상 유저가 다릅니다."))
+                } else {
+                    Mono.just(it)
                 }
             }
             .flatMap { uploadSessionModel ->
                 val fileChunk = UploadChunk(chunkNumber, tempFile.absolutePath);
                 uploadSessionModel.chunkList.add(fileChunk);
 
-                return@flatMap filePart.transferTo(tempFile).thenReturn(uploadSessionModel);
+                filePart.transferTo(tempFile).thenReturn(uploadSessionModel);
             }
             .flatMap { uploadSessionModel ->
                 uploadSessionRepository.save(uploadSessionModel);
@@ -57,12 +59,14 @@ class UploadSessionService(
     fun finishUpload(id: String, totalChunkCount: Int): Mono<FileModel> {
         return uploadSessionRepository.findById(ObjectId(id))
             .switchIfEmpty(sessionNotExistsMono)
-            .doOnNext { uploadSession ->
+            .flatMap { uploadSession ->
                 if (uploadSession.chunkList.size != totalChunkCount) {
-                    throw IllegalArgumentException(
+                    Mono.error(IllegalArgumentException(
                         "전송완료된 파일 청크 갯수(${uploadSession.chunkList.size})와 " +
                                 "전달된 파일청크 갯수(${totalChunkCount})가 다릅니다."
-                    )
+                    ))
+                } else {
+                    Mono.just(uploadSession)
                 }
             }
             .flatMap { uploadSession ->
@@ -70,10 +74,9 @@ class UploadSessionService(
 
                 fileService.uploadFile(uploadSession.filePath) { uploadRealPath ->
                     val targetFile = uploadRealPath.toFile();
-
                     val targetFileWriter = FileWriter(targetFile, true);
 
-                    return@uploadFile Flux.fromIterable(fileChunkList)
+                    Flux.fromIterable(fileChunkList)
                         .map { uploadChunk ->
                             val result = FileReader(uploadChunk.filePath).use { reader ->
                                 reader.transferTo(targetFileWriter)

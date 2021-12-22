@@ -24,14 +24,15 @@ class DirectoryService(
         val parentDelDirMono = directoryRepository.findByDirectoryFullPath(parentPath)
         return Mono.zip(delDirMono, parentDelDirMono)
             .switchIfEmpty(notExistsMono("삭제대상 디렉토리"))
-            .doOnNext {
+            .flatMap {
                 val (delDir, parentDelDir) = it
 
                 if (delDir.fileList.isNotEmpty() || delDir.subDirectory.isNotEmpty()) {
-                    throw IllegalArgumentException("내부 파일/폴더를 모두 지우고 파일을 삭제해주세요.");
+                    return@flatMap Mono.error(IllegalArgumentException("내부 파일/폴더를 모두 지우고 파일을 삭제해주세요."))
+                } else {
+                    parentDelDir.subDirectory.remove(pathName)
+                    return@flatMap Mono.just(it)
                 }
-
-                parentDelDir.subDirectory.remove(pathName)
             }
             .flatMap {
                 val next = it;
@@ -88,17 +89,16 @@ class DirectoryService(
             directoryRepository.findByDirectoryFullPath(newParentPath)
                 .switchIfEmpty(notExistsMono("대상 부모 디렉토리")),
         )
-            .doOnNext { // 검증
+            .flatMap { // 검증
                 val (oldParDir, newParDir) = it;
 
                 if (!oldParDir.subDirectory.containsKey(oldDirName)) {
-                    throw IllegalArgumentException("기존 디렉토리가 존재하지 않습니다. : ${oldPath}");
+                    Mono.error(IllegalArgumentException("기존 디렉토리가 존재하지 않습니다. : ${oldPath}"))
+                } else if (newParDir.subDirectory.containsKey(newDirName)) {
+                    Mono.error(IllegalArgumentException("이동할 대상 디렉토리가 이미 존재합니다.. : ${newPath}"))
+                } else {
+                    Mono.just(it)
                 }
-
-                if (newParDir.subDirectory.containsKey(newDirName)) {
-                    throw IllegalArgumentException("이동할 대상 디렉토리가 이미 존재합니다.. : ${newPath}");
-                }
-
             }
             .flatMap { // 과거 디렉토리 모델 조회
                 val (oldParDir, newParDir) = it;
@@ -114,9 +114,11 @@ class DirectoryService(
                     }
                     .map { Pair(Pair(oldParDir, newParDir), it) }
             }
-            .doOnNext {
+            .flatMap {
                 if (it.second.first.subDirectory.isNotEmpty()) {
-                    throw IllegalArgumentException("이동할 디렉토리에는 서브 디렉토리가 없어야 합니다. (추후 개선파트)")
+                    Mono.error(IllegalArgumentException("이동할 디렉토리에는 서브 디렉토리가 없어야 합니다. (추후 개선파트)"))
+                } else {
+                    Mono.just(it)
                 }
             }
             .flatMap { // 새로운 디렉토리 모델 저장
@@ -144,9 +146,6 @@ class DirectoryService(
                 })
 
                 newDirMono.flatMap { directoryRepository.save(oldParDir) }
-                    .doOnError {
-                        throw IllegalStateException("디렉토리 이동중 부모 디렉토리 모델 처리에 오류가 생겼습니다.", it);
-                    }
                     .map {
                         targetDirSet;
                     }
@@ -163,17 +162,15 @@ class DirectoryService(
         parentDirectoryModel: DirectoryModel?
     ): Mono<DirectoryModel> {
         return directoryRepository.findByDirectoryFullPath(fullPath)
-            .switchIfEmpty(Mono.defer {
-                return@defer directoryRepository.save(DirectoryModel(name, fullPath))
-                    .flatMap {
-                        val createdDirModel = it
-                        if (parentDirectoryModel?.id != null && it?.id != null) {
-                            parentDirectoryModel.subDirectory.set(name, it.id!!)
-                            return@flatMap directoryRepository.save(parentDirectoryModel).map { createdDirModel }
-                        } else {
-                            return@flatMap Mono.just(createdDirModel)
-                        }
-                    }
-            })
+            .switchIfEmpty(directoryRepository.save(DirectoryModel(name, fullPath)))
+            .flatMap {
+                val createdDirModel = it
+                if (parentDirectoryModel?.id != null && it?.id != null) {
+                    parentDirectoryModel.subDirectory.set(name, it.id!!)
+                    directoryRepository.save(parentDirectoryModel).map { createdDirModel }
+                } else {
+                    Mono.just(createdDirModel)
+                }
+            }
     }
 }
