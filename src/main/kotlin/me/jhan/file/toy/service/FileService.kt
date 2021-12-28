@@ -4,6 +4,7 @@ import me.jhan.file.toy.model.FileInfoModel
 import me.jhan.file.toy.model.FileModel
 import me.jhan.file.toy.repository.DirectoryRepository
 import me.jhan.file.toy.util.PathUtil
+import me.jhan.file.toy.util.notExistsMono
 import org.apache.commons.lang3.RandomStringUtils
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.core.io.FileSystemResource
@@ -25,12 +26,14 @@ class FileService(
     @Value("\${fileAPI.storageRoot}")
     private val storageRoot: String = "/"
 
+
     fun getFileInfo(path: String): Mono<FileInfoModel> {
         val (dirPath, fileName) = PathUtil.splitFile(path)
         val userId = userService.getUserId()
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("파일"))
             .map { it.fileList }
             .map { it[fileName] }
             .map { checkNotNull(it) }
@@ -43,6 +46,7 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("디렉토리"))
             .map { it.fileList }
             .map { it[fileName] }
             .map { checkNotNull(it) }
@@ -57,16 +61,18 @@ class FileService(
         val oldFullPath = "${userId}/${oldDirPath}";
         val newFullPath = "${userId}/${newDirPath}"
 
-        val oldDirectory = directoryRepository.findByDirectoryFullPath(oldFullPath);
-        val newDirectory = directoryRepository.findByDirectoryFullPath(newFullPath);
+        val oldDirectory = directoryRepository.findByDirectoryFullPath(oldFullPath)
+            .switchIfEmpty(notExistsMono("기존 디렉토리"))
+        val newDirectory = directoryRepository.findByDirectoryFullPath(newFullPath)
+            .switchIfEmpty(notExistsMono("대상 디렉토리"))
         return Mono.zip(oldDirectory, newDirectory)
-            .doOnNext {
+            .flatMap {
                 if (!it.t1.fileList.containsKey(oldFileName)) {
-                    throw IllegalArgumentException("이전 파일이 존재하지 않습니다. : ${oldPath}");
-                }
-
-                if (it.t2.fileList.containsKey(newFileName)) {
-                    throw IllegalArgumentException("이동할 대상 파일이 이미 존재 합니다.. : ${newPath}");
+                    Mono.error(IllegalArgumentException("이전 파일이 존재하지 않습니다. : ${oldPath}"))
+                } else if (it.t2.fileList.containsKey(newFileName)) {
+                    Mono.error(IllegalArgumentException("이동할 대상 파일이 이미 존재 합니다.. : ${newPath}"))
+                } else {
+                    Mono.just(it)
                 }
             }
             .flatMap {
@@ -77,8 +83,7 @@ class FileService(
                 oldFileList.remove(oldFileName);
                 newFileList.put(newFileName, fileModel);
 
-                return@flatMap Mono
-                    .zip(directoryRepository.save(it.t1), directoryRepository.save(it.t2))
+                Mono.zip(directoryRepository.save(it.t1), directoryRepository.save(it.t2))
                     .onErrorMap { IllegalStateException("파일 이동에 실패했습니다. oldPath: ${oldPath}, newPath: ${newPath}", it) }
                     .map { fileModel }
             }
@@ -90,6 +95,7 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("디렉토리"))
             .flatMap {
                 val dirModel = it
                 val fileList = it.fileList
@@ -115,6 +121,14 @@ class FileService(
         val fullPath = "${userId}/${dirPath}"
 
         return directoryRepository.findByDirectoryFullPath(fullPath)
+            .switchIfEmpty(notExistsMono("삭제할 디렉토리"))
+            .flatMap {
+                if (it.fileList.containsKey(fileName)) {
+                    Mono.error(IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}"))
+                } else {
+                    Mono.just(it)
+                }
+            }
             .flatMap {
                 val dirModel = it
                 val fileList = it.fileList
@@ -123,16 +137,11 @@ class FileService(
                 val newFileStoragePath = Path(storageRoot, newFileName)
                 val newFileModel = FileModel(newFileStoragePath.toString(), LocalDateTime.now())
 
-                if (fileList.containsKey(fileName)) {
-                    throw IllegalArgumentException("다음 파일 경로가 이미 존재합니다. : ${path}");
-                }
-
                 fileList[fileName] = newFileModel
                 val saveFileStorage = saveFunction(newFileStoragePath);
                 val saveFileDB = directoryRepository.save(dirModel)
 
-                return@flatMap Mono
-                    .zip(saveFileStorage, saveFileDB)
+                Mono.zip(saveFileStorage, saveFileDB)
                     .thenReturn(newFileModel)
             }
 
